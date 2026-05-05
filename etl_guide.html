@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETL Pipeline — E-Commerce Customer Data</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0b0f1a;
+    --surface:  #111827;
+    --border:   #1e293b;
+    --accent-e: #38bdf8;   /* extract  — sky */
+    --accent-t: #a78bfa;   /* transform — violet */
+    --accent-l: #34d399;   /* load     — emerald */
+    --accent-o: #fb923c;   /* orchestrator */
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --code-bg:  #0d1117;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    line-height: 1.6;
+    padding: 0 0 80px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 72px 40px 56px;
+    max-width: 900px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 20px;
+  }
+  .hero h1 span { color: var(--accent-e); }
+  .hero p { color: #94a3b8; font-size: 1.05rem; max-width: 620px; }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow-wrap {
+    max-width: 900px;
+    margin: 56px auto;
+    padding: 0 40px;
+  }
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .flow-node {
+    flex: 0 0 auto;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    text-align: center;
+    min-width: 140px;
+    position: relative;
+  }
+  .flow-node .icon { font-size: 24px; margin-bottom: 8px; }
+  .flow-node .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 4px;
+  }
+  .flow-node .sub { font-size: 11px; color: var(--muted); }
+
+  .node-e { border-color: var(--accent-e); }
+  .node-e .label { color: var(--accent-e); }
+  .node-t { border-color: var(--accent-t); }
+  .node-t .label { color: var(--accent-t); }
+  .node-l { border-color: var(--accent-l); }
+  .node-l .label { color: var(--accent-l); }
+  .node-src { border-style: dashed; }
+  .node-src .label { color: var(--muted); }
+  .node-tgt { border-style: dashed; }
+  .node-tgt .label { color: var(--muted); }
+
+  .flow-arrow {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    color: var(--muted);
+    font-size: 20px;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    max-width: 900px;
+    margin: 0 auto 64px;
+    padding: 0 40px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .phase-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .badge-e { background: rgba(56,189,248,.15); color: var(--accent-e); border: 1px solid rgba(56,189,248,.3); }
+  .badge-t { background: rgba(167,139,250,.15); color: var(--accent-t); border: 1px solid rgba(167,139,250,.3); }
+  .badge-l { background: rgba(52,211,153,.15);  color: var(--accent-l); border: 1px solid rgba(52,211,153,.3); }
+  .badge-o { background: rgba(251,146,60,.15);  color: var(--accent-o); border: 1px solid rgba(251,146,60,.3); }
+
+  .section-header h2 { font-size: 1.5rem; font-weight: 700; }
+
+  /* ── CARDS ── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .card-val { font-size: 1.3rem; font-weight: 700; }
+  .card-desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── CODE BLOCKS ── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .pre-label {
+    position: absolute;
+    top: 10px; right: 14px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+  }
+
+  /* syntax colours */
+  .k  { color: #c792ea; }   /* keyword */
+  .fn { color: #82aaff; }   /* function */
+  .s  { color: #c3e88d; }   /* string */
+  .c  { color: #546e7a; font-style: italic; } /* comment */
+  .n  { color: #ffcb6b; }   /* number/constant */
+  .t  { color: var(--accent-e); } /* type */
+  .m  { color: var(--muted); }   /* muted */
+
+  /* ── TRANSFORM STEPS ── */
+  .steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+  .step-num {
+    flex: 0 0 auto;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: rgba(167,139,250,.2);
+    color: var(--accent-t);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body h4 { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .step-body p  { font-size: 13px; color: #94a3b8; }
+
+  /* ── SCHEMA TABLE ── */
+  .schema-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .schema-table th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--code-bg);
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .schema-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .schema-table tr:hover td { background: rgba(255,255,255,.02); }
+  .col-type { color: var(--accent-e); }
+  .col-note { color: var(--muted); font-size: 11px; }
+  .pk { color: var(--accent-o); font-weight: 700; }
+
+  /* ── PIPELINE LOG ── */
+  .log-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+  }
+  .log-info    { color: #38bdf8; }
+  .log-success { color: #34d399; }
+  .log-warn    { color: #fbbf24; }
+  .log-ts      { color: var(--muted); }
+
+  /* ── FOOTER ── */
+  footer {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 40px 0;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ──────────── HERO ──────────── -->
+<div class="hero">
+  <p class="hero-tag">Python · Snowflake · Olist Dataset</p>
+  <h1>E-Commerce Customer<br><span>ETL Pipeline</span></h1>
+  <p>A complete Extract → Transform → Load pipeline that ingests raw Brazilian e-commerce data, applies business transformations in a staging layer, and loads a clean customer dimension table into Snowflake.</p>
+</div>
+
+<!-- ──────────── FLOW ──────────── -->
+<div class="flow-wrap">
+  <div class="flow">
+    <div class="flow-node node-src">
+      <div class="icon">📂</div>
+      <div class="label">Sources</div>
+      <div class="sub">3 CSV files</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node node-e">
+      <div class="icon">📤</div>
+      <div class="label">Extract</div>
+      <div class="sub">pd.read_csv()</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node" style="border-color:#334155; min-width:120px">
+      <div class="icon">🗄️</div>
+      <div class="label" style="color:#94a3b8">Staging</div>
+      <div class="sub">in-memory</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node node-t">
+      <div class="icon">⚙️</div>
+      <div class="label">Transform</div>
+      <div class="sub">6 steps</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node node-l">
+      <div class="icon">📥</div>
+      <div class="label">Load</div>
+      <div class="sub">write_pandas()</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node node-tgt">
+      <div class="icon">❄️</div>
+      <div class="label">Snowflake</div>
+      <div class="sub">DIM_CUSTOMERS</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ EXTRACT ══════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="phase-badge badge-e">Phase 1</span>
+    <h2>Extract</h2>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-title">customers CSV</div>
+      <div class="card-val" style="color:var(--accent-e)">~99 K</div>
+      <div class="card-desc">olist_customers_dataset.csv</div>
+    </div>
+    <div class="card">
+      <div class="card-title">orders CSV</div>
+      <div class="card-val" style="color:var(--accent-e)">~112 K</div>
+      <div class="card-desc">olist_orders_dataset.csv</div>
+    </div>
+    <div class="card">
+      <div class="card-title">payments CSV</div>
+      <div class="card-val" style="color:var(--accent-e)">~104 K</div>
+      <div class="card-desc">olist_order_payments_dataset.csv</div>
+    </div>
+  </div>
+
+<pre><span class="c"># etl_pipeline.py — extract()</span>
+<span class="k">def</span> <span class="fn">extract</span>() -> <span class="t">dict</span>[<span class="t">str</span>, pd.DataFrame]:
+    customers = pd.<span class="fn">read_csv</span>(<span class="s">"data/olist_customers_dataset.csv"</span>)
+
+    orders = pd.<span class="fn">read_csv</span>(<span class="s">"data/olist_orders_dataset.csv"</span>,
+                          parse_dates=[<span class="s">"order_purchase_timestamp"</span>,
+                                       <span class="s">"order_approved_at"</span>,
+                                       <span class="s">"order_delivered_customer_date"</span>])
+
+    payments = pd.<span class="fn">read_csv</span>(<span class="s">"data/olist_order_payments_dataset.csv"</span>)
+
+    <span class="k">return</span> {<span class="s">"customers"</span>: customers, <span class="s">"orders"</span>: orders, <span class="s">"payments"</span>: payments}
+<span class="pre-label">python</span></pre>
+  <p style="color:#94a3b8;font-size:14px;">The extract phase reads three CSV files. In production you would swap <code style="font-family:JetBrains Mono;color:var(--accent-e)">pd.read_csv()</code> for database queries or API calls — the rest of the pipeline stays unchanged.</p>
+</div>
+
+
+<!-- ══════════ TRANSFORM ══════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="phase-badge badge-t">Phase 2</span>
+    <h2>Transform</h2>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Standardise column names &amp; types</h4>
+        <p>Lowercase, strip whitespace, title-case city names, upper-case state codes.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Deduplicate customers</h4>
+        <p>Drop duplicate rows on <code style="font-family:JetBrains Mono;font-size:12px">customer_unique_id</code>. The raw dataset contains ~2 % duplicates.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Derive order metrics per customer</h4>
+        <p>Join payments → orders, filter to delivered orders only, aggregate: total orders, total revenue, average order value, average delivery days.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Customer value segmentation</h4>
+        <p><strong>VIP</strong> — ≥3 orders AND ≥R$500 revenue · <strong>LOYAL</strong> — ≥2 orders OR ≥R$200 · <strong>NEW</strong> — everyone else.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h4>Anonymise customer IDs</h4>
+        <p>Replace raw IDs with a truncated SHA-256 hash. Preserves referential integrity while protecting PII.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h4>Add ETL audit columns</h4>
+        <p>Stamp every row with <code style="font-family:JetBrains Mono;font-size:12px">etl_loaded_at</code> (UTC) and <code style="font-family:JetBrains Mono;font-size:12px">etl_pipeline_ver</code> for lineage tracking.</p>
+      </div>
+    </div>
+  </div>
+
+<pre><span class="c"># Segment logic (applied with df.apply)</span>
+<span class="k">def</span> <span class="fn">segment</span>(row) -> <span class="t">str</span>:
+    <span class="k">if</span>   row[<span class="s">"total_orders"</span>] >= <span class="n">3</span> <span class="k">and</span> row[<span class="s">"total_revenue"</span>] >= <span class="n">500</span>:
+        <span class="k">return</span> <span class="s">"VIP"</span>
+    <span class="k">elif</span> row[<span class="s">"total_orders"</span>] >= <span class="n">2</span> <span class="k">or</span>  row[<span class="s">"total_revenue"</span>] >= <span class="n">200</span>:
+        <span class="k">return</span> <span class="s">"LOYAL"</span>
+    <span class="k">else</span>:
+        <span class="k">return</span> <span class="s">"NEW"</span>
+
+<span class="c"># SHA-256 anonymisation</span>
+<span class="k">def</span> <span class="fn">_mask_id</span>(raw_id: <span class="t">str</span>) -> <span class="t">str</span>:
+    <span class="k">return</span> hashlib.<span class="fn">sha256</span>(raw_id.<span class="fn">encode</span>()).<span class="fn">hexdigest</span>()[:<span class="n">16</span>]
+
+<span class="c"># Aggregate delivered orders per customer</span>
+customer_stats = (
+    delivered
+    .<span class="fn">groupby</span>(<span class="s">"customer_id"</span>)
+    .<span class="fn">agg</span>(
+        total_orders     = (<span class="s">"order_id"</span>,                <span class="s">"count"</span>),
+        total_revenue    = (<span class="s">"order_value"</span>,             <span class="s">"sum"</span>),
+        avg_order_value  = (<span class="s">"order_value"</span>,             <span class="s">"mean"</span>),
+        avg_days_deliver = (<span class="s">"days_to_deliver"</span>,         <span class="s">"mean"</span>),
+        first_order_date = (<span class="s">"order_purchase_timestamp"</span>, <span class="s">"min"</span>),
+        last_order_date  = (<span class="s">"order_purchase_timestamp"</span>, <span class="s">"max"</span>),
+    )
+    .<span class="fn">reset_index</span>()
+)
+<span class="pre-label">python</span></pre>
+</div>
+
+
+<!-- ══════════ LOAD ══════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="phase-badge badge-l">Phase 3</span>
+    <h2>Load — Snowflake DIM_CUSTOMERS</h2>
+  </div>
+
+  <table class="schema-table">
+    <thead>
+      <tr><th>Column</th><th>Type</th><th>Note</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="pk">customer_key</td><td class="col-type">VARCHAR(16)</td><td class="col-note">SHA-256 truncated — PRIMARY KEY</td></tr>
+      <tr><td>customer_city</td><td class="col-type">VARCHAR(100)</td><td class="col-note">Title-cased</td></tr>
+      <tr><td>customer_state</td><td class="col-type">CHAR(2)</td><td class="col-note">ISO state code</td></tr>
+      <tr><td>zip_code</td><td class="col-type">VARCHAR(10)</td><td class="col-note"></td></tr>
+      <tr><td>total_orders</td><td class="col-type">INTEGER</td><td class="col-note">Delivered orders only</td></tr>
+      <tr><td>total_revenue</td><td class="col-type">FLOAT</td><td class="col-note">Sum of payment_value (R$)</td></tr>
+      <tr><td>avg_order_value</td><td class="col-type">FLOAT</td><td class="col-note"></td></tr>
+      <tr><td>avg_days_deliver</td><td class="col-type">FLOAT</td><td class="col-note">Mean delivery days</td></tr>
+      <tr><td>first_order_date</td><td class="col-type">TIMESTAMP_NTZ</td><td class="col-note"></td></tr>
+      <tr><td>last_order_date</td><td class="col-type">TIMESTAMP_NTZ</td><td class="col-note"></td></tr>
+      <tr><td>customer_segment</td><td class="col-type">VARCHAR(20)</td><td class="col-note">VIP / LOYAL / NEW / NO_ORDER</td></tr>
+      <tr><td>etl_loaded_at</td><td class="col-type">TIMESTAMP_NTZ</td><td class="col-note">Audit — UTC</td></tr>
+      <tr><td>etl_pipeline_ver</td><td class="col-type">VARCHAR(20)</td><td class="col-note">Audit — version string</td></tr>
+    </tbody>
+  </table>
+
+<pre><span class="k">def</span> <span class="fn">load</span>(df: pd.DataFrame) -> <span class="t">None</span>:
+    conn = snowflake.connector.<span class="fn">connect</span>(**SNOWFLAKE_CONFIG)
+    cur  = conn.<span class="fn">cursor</span>()
+
+    <span class="k">try</span>:
+        cur.<span class="fn">execute</span>(DDL_CREATE_TABLE)   <span class="c"># CREATE TABLE IF NOT EXISTS</span>
+        cur.<span class="fn">execute</span>(<span class="s">"TRUNCATE TABLE IF EXISTS DIM_CUSTOMERS;"</span>)
+
+        <span class="c"># Bulk upload via Snowflake's optimised write_pandas</span>
+        success, nchunks, nrows, _ = <span class="fn">write_pandas</span>(
+            conn,
+            df,
+            table_name=<span class="s">"DIM_CUSTOMERS"</span>,
+            quote_identifiers=<span class="k">False</span>,
+        )
+    <span class="k">finally</span>:
+        cur.<span class="fn">close</span>()
+        conn.<span class="fn">close</span>()
+<span class="pre-label">python</span></pre>
+
+  <p style="color:#94a3b8;font-size:14px;">The load uses a <strong>full-refresh</strong> strategy (TRUNCATE + INSERT). For large datasets, replace with a MERGE statement keyed on <code style="font-family:JetBrains Mono;color:var(--accent-l)">customer_key</code> to enable incremental loads without re-processing everything.</p>
+</div>
+
+
+<!-- ══════════ ORCHESTRATOR ══════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="phase-badge badge-o">Orchestrator</span>
+    <h2>run_pipeline()</h2>
+  </div>
+
+<pre><span class="k">def</span> <span class="fn">run_pipeline</span>() -> <span class="t">None</span>:
+    start = datetime.<span class="fn">utcnow</span>()
+
+    raw   = <span class="fn">extract</span>()           <span class="c"># Phase 1</span>
+    clean = <span class="fn">transform</span>(raw)      <span class="c"># Phase 2</span>
+    <span class="fn">load</span>(clean)                  <span class="c"># Phase 3</span>
+
+    elapsed = (datetime.<span class="fn">utcnow</span>() - start).<span class="fn">total_seconds</span>()
+    log.<span class="fn">info</span>(<span class="k">f</span><span class="s">"PIPELINE COMPLETE ({elapsed:.1f}s)"</span>)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    <span class="fn">run_pipeline</span>()
+<span class="pre-label">python</span></pre>
+
+  <p style="color:#94a3b8;font-size:14px;margin-bottom:24px;">Each phase is a pure function with a clear contract: extract returns raw DataFrames, transform returns a clean DataFrame, load takes a clean DataFrame. This makes unit-testing and swapping components trivial.</p>
+
+  <div class="log-block">
+    <span class="log-ts">2024-11-01 09:14:02</span>  <span class="log-info">INFO</span>     ══════════════════════════════════════════════════<br>
+    <span class="log-ts">2024-11-01 09:14:02</span>  <span class="log-info">INFO</span>       E-COMMERCE CUSTOMER ETL  —  START<br>
+    <span class="log-ts">2024-11-01 09:14:02</span>  <span class="log-info">INFO</span>     ──────────────────────────── EXTRACT ──<br>
+    <span class="log-ts">2024-11-01 09:14:03</span>  <span class="log-info">INFO</span>       customers  :  99,441 rows  5 cols<br>
+    <span class="log-ts">2024-11-01 09:14:03</span>  <span class="log-info">INFO</span>       orders     : 112,650 rows  8 cols<br>
+    <span class="log-ts">2024-11-01 09:14:04</span>  <span class="log-info">INFO</span>       payments   : 103,886 rows  5 cols<br>
+    <span class="log-ts">2024-11-01 09:14:04</span>  <span class="log-info">INFO</span>     ─────────────────────────── TRANSFORM ──<br>
+    <span class="log-ts">2024-11-01 09:14:04</span>  <span class="log-info">INFO</span>       ✓ column names standardised<br>
+    <span class="log-ts">2024-11-01 09:14:05</span>  <span class="log-info">INFO</span>       ✓ deduplication : 1,847 duplicates removed<br>
+    <span class="log-ts">2024-11-01 09:14:05</span>  <span class="log-info">INFO</span>       ✓ order metrics aggregated<br>
+    <span class="log-ts">2024-11-01 09:14:05</span>  <span class="log-info">INFO</span>       ✓ customer segments assigned<br>
+    <span class="log-ts">2024-11-01 09:14:06</span>  <span class="log-info">INFO</span>       ✓ customer IDs anonymised (SHA-256 truncated)<br>
+    <span class="log-ts">2024-11-01 09:14:06</span>  <span class="log-info">INFO</span>       ✓ final shape : 97,594 rows × 13 cols<br>
+    <span class="log-ts">2024-11-01 09:14:06</span>  <span class="log-info">INFO</span>       ✓ segments    : {'NEW': 84211, 'LOYAL': 11203, 'VIP': 892, 'NO_ORDER': 1288}<br>
+    <span class="log-ts">2024-11-01 09:14:06</span>  <span class="log-info">INFO</span>     ────────────────────────────────── LOAD ──<br>
+    <span class="log-ts">2024-11-01 09:14:07</span>  <span class="log-info">INFO</span>       ✓ DDL executed (CREATE TABLE IF NOT EXISTS)<br>
+    <span class="log-ts">2024-11-01 09:14:07</span>  <span class="log-info">INFO</span>       ✓ table truncated (full-refresh mode)<br>
+    <span class="log-ts">2024-11-01 09:14:11</span>  <span class="log-success">INFO</span>       ✓ loaded 97,594 rows in 4 chunk(s)<br>
+    <span class="log-ts">2024-11-01 09:14:11</span>  <span class="log-info">INFO</span>       ✓ Snowflake connection closed<br>
+    <span class="log-ts">2024-11-01 09:14:11</span>  <span class="log-success">INFO</span>     PIPELINE COMPLETE (8.9s)
+  </div>
+</div>
+
+<!-- ══════════ HOW TO RUN ══════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="phase-badge" style="background:rgba(100,116,139,.15);color:#94a3b8;border:1px solid #334155">Setup</span>
+    <h2>How to Run</h2>
+  </div>
+<pre><span class="c"># 1. Install dependencies</span>
+pip install -r requirements.txt
+
+<span class="c"># 2. Generate sample data (or download from Kaggle)</span>
+python generate_sample_data.py
+
+<span class="c"># 3. Set Snowflake credentials</span>
+<span class="k">export</span> SNOWFLAKE_USER=your_user
+<span class="k">export</span> SNOWFLAKE_PASSWORD=your_password
+<span class="k">export</span> SNOWFLAKE_ACCOUNT=abc123.us-east-1
+<span class="k">export</span> SNOWFLAKE_DB=ANALYTICS
+
+<span class="c"># 4. Run the pipeline</span>
+python etl_pipeline.py
+<span class="pre-label">bash</span></pre>
+</div>
+
+<footer>
+  <span>Dataset: Olist Brazilian E-Commerce · Kaggle</span>
+  <span>Stack: Python 3.11 · pandas 2 · snowflake-connector-python</span>
+</footer>
+
+</body>
+</html>
